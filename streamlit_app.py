@@ -11,28 +11,33 @@ st.write(
 name_on_order = st.text_input('Name on Smoothie: ')
 st.write('The name on your Smoothie will be: ', name_on_order)
 
-# Establishing Snowflake connection using Streamlit secrets
-conn_params = st.secrets["connections"]["SnowparkConnection"]
-session = Session.builder.configs(conn_params).create()
+# Debugging: Print secrets keys
+st.write(st.secrets.keys())
 
-# Retrieve available fruit options from Snowflake
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME')).to_pandas()
+if "connections" in st.secrets and "SnowparkConnection" in st.secrets["connections"]:
+    conn_params = st.secrets["connections"]["SnowparkConnection"]
+    session = Session.builder.configs(conn_params).create()
 
-ingredients_list = st.multiselect(
-    'Choose up to 5 ingredients:',
-    my_dataframe['FRUIT_NAME'].tolist(),
-    max_selections=5
-)
+    # Retrieve available fruit options from Snowflake
+    my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME')).to_pandas()
 
-if ingredients_list:
-    ingredients_string = ' '.join(ingredients_list)
-    
-    my_insert_stmt = f"""
-    INSERT INTO smoothies.public.orders (ingredients, name_on_order)
-    VALUES ('{ingredients_string}', '{name_on_order}')
-    """
+    ingredients_list = st.multiselect(
+        'Choose up to 5 ingredients:',
+        my_dataframe['FRUIT_NAME'].tolist(),
+        max_selections=5
+    )
 
-    time_to_insert = st.button('Submit Order')
-    if time_to_insert:
-        session.sql(my_insert_stmt).collect()
-        st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
+    if ingredients_list:
+        ingredients_string = ' '.join(ingredients_list)
+
+        my_insert_stmt = f"""
+        INSERT INTO smoothies.public.orders (ingredients, name_on_order)
+        VALUES ('{ingredients_string}', '{name_on_order}')
+        """
+
+        time_to_insert = st.button('Submit Order')
+        if time_to_insert:
+            session.sql(my_insert_stmt).collect()
+            st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
+else:
+    st.error("SnowparkConnection details are missing in the secrets.")
